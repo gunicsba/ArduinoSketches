@@ -1,6 +1,10 @@
 #include <Bounce.h>
 #include <elapsedMillis.h>
 #include <EEPROM.h>
+#include <SoftwareSerial.h> 
+
+
+#define debug false
 
 
   // if not in eeprom, overwrite 
@@ -11,7 +15,8 @@
   Bounce workSw = Bounce(9, 10); // pushbutton on pin 9
 
   HardwareSerial* SerialOne = &Serial5;   //???
-  HardwareSerial* SerialTwo = &Serial5;   //???
+  //SoftwareSerial SerialOne = SoftwareSerial(21,20);// rxPin, txPin,
+  HardwareSerial* SerialTwo = &Serial7;   //???
 
   #define SPEED_SIZE 5
   const int serialSpeed[SPEED_SIZE] = {9600,19200,38400,57600,115200};
@@ -21,9 +26,15 @@
 
   uint8_t sniff = false;
   elapsedMillis emit;
-  int incomingByte = 0; // for incoming serial data
+  elapsedMillis ellapsedOne;
+  elapsedMillis ellapsedTwo;
+  //int incomingByte = 0; // for incoming serial data
+  char incomingByte = 0; // for incoming serial data
+  String strOne;
+  String strTwo;
 
-void setup() {  
+void setup() {
+    //pinMode(21, INPUT);pinMode(20, OUTPUT);  
     delay(100);
     EEPROM.get(0, EEread);     // read identifier
       
@@ -50,7 +61,9 @@ void setup() {
   if(lastSerialSpeed > SPEED_SIZE) lastSerialSpeed = 0;
   // put your setup code here, to run once:
   SerialOne->begin(serialSpeed[lastSerialSpeed]);
+  delay(10);
   SerialTwo->begin(serialSpeed[lastSerialSpeed]);
+  delay(10);
   
   Serial.print("Baud rate is set to ");
   Serial.println(serialSpeed[lastSerialSpeed]);
@@ -88,23 +101,51 @@ void loop() {
   if(!sniff && emit > 1000){
     emit = 0;
     Serial.print(millis());
-    Serial.println(" This is a dummy message");
+    Serial.println("C This is a dummy message");
     SerialOne->print(millis());
-    SerialOne->println(" This is a dummy message");
+    SerialOne->println(" ->5 This is a dummy message");
     SerialTwo->print(millis());
-    SerialTwo->println(" This is a dummy message");
+    SerialTwo->println(" ->7 This is a dummy message");
   }
-
+  
   while(SerialOne->available() > 0){
     incomingByte = SerialOne->read();
     SerialTwo->write(incomingByte);
-    Serial.write(incomingByte);    
+    if(debug) Serial.write(incomingByte);
+    strOne.concat(incomingByte);
+    ellapsedOne=0;
+    if(incomingByte == '\n') {
+      Serial.print("<<<<< ");
+      Serial.println(strOne);
+      strOne = "";
+    }
+  }
+  if(ellapsedOne > 500 && !strOne.equals("")){
+    ellapsedTwo=0;
+    Serial.print("<<<<< ");
+    Serial.print(strOne);
+    strOne="";
   }
 
   while(SerialTwo->available() > 0){
     incomingByte = SerialTwo->read();
     SerialOne->write(incomingByte);
-    Serial.write(incomingByte);    
+    if(debug) Serial.write(incomingByte);    
+    strTwo.concat(incomingByte);
+    ellapsedTwo=0;
+    if(incomingByte == '\n') {
+      Serial.print(millis());
+      Serial.print(">>>>> ");
+      Serial.print(strTwo);
+      strTwo = "";
+    }
+  }
+  if(ellapsedTwo > 500 && !strTwo.equals("")){
+    ellapsedTwo=0;
+    Serial.print(millis());
+    Serial.print(">>>>> ");
+    Serial.println(strTwo);
+    strTwo="";
   }
 
   while(Serial.available() > 0){
